@@ -2,21 +2,8 @@
  <img alt="ollama" height="200px" src="https://github.com/ollama/ollama/assets/3325447/0d0b44e2-8f4a-4e99-9b52-a5c1c741c8f7">
 </div>
 
-# Ollama
+# Xai Backend
 
-[![Discord](https://dcbadge.vercel.app/api/server/ollama?style=flat&compact=true)](https://discord.gg/ollama)
-
-Get up and running with large language models.
-
-### macOS
-
-[Download](https://ollama.com/download/Ollama-darwin.zip)
-
-### Windows
-
-[Download](https://ollama.com/download/OllamaSetup.exe)
-
-### Linux
 
 ```
 curl -fsSL https://ollama.com/install.sh | sh

@@ -6,7 +6,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/ollama/ollama/api"
+	"github.com/ollama/ollama/core/api"
 )
 
 func TestExtractFilenames(t *testing.T) {

@@ -4,11 +4,17 @@
 
 set -eu
 
-red="$( (/usr/bin/tput bold || :; /usr/bin/tput setaf 1 || :) 2>&-)"
+red="$( (
+    /usr/bin/tput bold || :
+    /usr/bin/tput setaf 1 || :
+) 2>&-)"
 plain="$( (/usr/bin/tput sgr0 || :) 2>&-)"
 
 status() { echo ">>> $*" >&2; }
-error() { echo "${red}ERROR:${plain} $*"; exit 1; }
+error() {
+    echo "${red}ERROR:${plain} $*"
+    exit 1
+}
 warning() { echo "${red}WARNING:${plain} $*"; }
 
 TEMP_DIR=$(mktemp -d)
@@ -31,18 +37,18 @@ require() {
 
 ARCH=$(uname -m)
 case "$ARCH" in
-    x86_64) ARCH="amd64" ;;
-    aarch64|arm64) ARCH="arm64" ;;
-    *) error "Unsupported architecture: $ARCH" ;;
+x86_64) ARCH="amd64" ;;
+aarch64 | arm64) ARCH="arm64" ;;
+*) error "Unsupported architecture: $ARCH" ;;
 esac
 
 IS_WSL2=false
 
 KERN=$(uname -r)
 case "$KERN" in
-    *icrosoft*WSL2 | *icrosoft*wsl2) IS_WSL2=true;;
-    *icrosoft) error "Microsoft WSL1 is not currently supported. Please use WSL2 with 'wsl --set-version <distro> 2'" ;;
-    *) ;;
+*icrosoft*WSL2 | *icrosoft*wsl2) IS_WSL2=true ;;
+*icrosoft) error "Microsoft WSL1 is not currently supported. Please use WSL2 with 'wsl --set-version <distro> 2'" ;;
+*) ;;
 esac
 
 VER_PARAM="${OLLAMA_VERSION:+?version=$OLLAMA_VERSION}"
@@ -71,7 +77,7 @@ for BINDIR in /usr/local/bin /usr/bin /bin; do
 done
 OLLAMA_INSTALL_DIR=$(dirname ${BINDIR})
 
-if [ -d "$OLLAMA_INSTALL_DIR/lib/ollama" ] ; then
+if [ -d "$OLLAMA_INSTALL_DIR/lib/ollama" ]; then
     status "Cleaning up old version at $OLLAMA_INSTALL_DIR/lib/ollama"
     $SUDO rm -rf "$OLLAMA_INSTALL_DIR/lib/ollama"
 fi
@@ -80,24 +86,24 @@ $SUDO install -o0 -g0 -m755 -d $BINDIR
 $SUDO install -o0 -g0 -m755 -d "$OLLAMA_INSTALL_DIR"
 status "Downloading Linux ${ARCH} bundle"
 curl --fail --show-error --location --progress-bar \
-    "https://ollama.com/download/ollama-linux-${ARCH}.tgz${VER_PARAM}" | \
+    "https://ollama.com/download/ollama-linux-${ARCH}.tgz${VER_PARAM}" |
     $SUDO tar -xzf - -C "$OLLAMA_INSTALL_DIR"
-if [ "$OLLAMA_INSTALL_DIR/bin/ollama" != "$BINDIR/ollama" ] ; then
+if [ "$OLLAMA_INSTALL_DIR/bin/ollama" != "$BINDIR/ollama" ]; then
     status "Making ollama accessible in the PATH in $BINDIR"
     $SUDO ln -sf "$OLLAMA_INSTALL_DIR/ollama" "$BINDIR/ollama"
 fi
 
 # Check for NVIDIA JetPack systems with additional downloads
-if [ -f /etc/nv_tegra_release ] ; then
-    if grep R36 /etc/nv_tegra_release > /dev/null ; then
+if [ -f /etc/nv_tegra_release ]; then
+    if grep R36 /etc/nv_tegra_release >/dev/null; then
         status "Downloading JetPack 6 components"
         curl --fail --show-error --location --progress-bar \
-            "https://ollama.com/download/ollama-linux-${ARCH}-jetpack6.tgz${VER_PARAM}" | \
+            "https://ollama.com/download/ollama-linux-${ARCH}-jetpack6.tgz${VER_PARAM}" |
             $SUDO tar -xzf - -C "$OLLAMA_INSTALL_DIR"
-    elif grep R35 /etc/nv_tegra_release > /dev/null ; then
+    elif grep R35 /etc/nv_tegra_release >/dev/null; then
         status "Downloading JetPack 5 components"
         curl --fail --show-error --location --progress-bar \
-            "https://ollama.com/download/ollama-linux-${ARCH}-jetpack5.tgz${VER_PARAM}" | \
+            "https://ollama.com/download/ollama-linux-${ARCH}-jetpack5.tgz${VER_PARAM}" |
             $SUDO tar -xzf - -C "$OLLAMA_INSTALL_DIR"
     else
         warning "Unsupported JetPack version detected.  GPU may not be supported"
@@ -148,20 +154,20 @@ WantedBy=default.target
 EOF
     SYSTEMCTL_RUNNING="$(systemctl is-system-running || true)"
     case $SYSTEMCTL_RUNNING in
-        running|degraded)
-            status "Enabling and starting ollama service..."
-            $SUDO systemctl daemon-reload
-            $SUDO systemctl enable ollama
+    running | degraded)
+        status "Enabling and starting ollama service..."
+        $SUDO systemctl daemon-reload
+        $SUDO systemctl enable ollama
 
-            start_service() { $SUDO systemctl restart ollama; }
-            trap start_service EXIT
-            ;;
-        *)
-            warning "systemd is not running"
-            if [ "$IS_WSL2" = true ]; then
-                warning "see https://learn.microsoft.com/en-us/windows/wsl/systemd#how-to-enable-systemd to enable it"
-            fi
-            ;;
+        start_service() { $SUDO systemctl restart ollama; }
+        trap start_service EXIT
+        ;;
+    *)
+        warning "systemd is not running"
+        if [ "$IS_WSL2" = true ]; then
+            warning "see https://learn.microsoft.com/en-us/windows/wsl/systemd#how-to-enable-systemd to enable it"
+        fi
+        ;;
     esac
 }
 
@@ -180,7 +186,7 @@ if [ "$IS_WSL2" = true ]; then
 fi
 
 # Don't attempt to install drivers on Jetson systems
-if [ -f /etc/nv_tegra_release ] ; then
+if [ -f /etc/nv_tegra_release ]; then
     status "NVIDIA JetPack ready."
     install_success
     exit 0
@@ -195,17 +201,19 @@ fi
 check_gpu() {
     # Look for devices based on vendor ID for NVIDIA and AMD
     case $1 in
-        lspci)
-            case $2 in
-                nvidia) available lspci && lspci -d '10de:' | grep -q 'NVIDIA' || return 1 ;;
-                amdgpu) available lspci && lspci -d '1002:' | grep -q 'AMD' || return 1 ;;
-            esac ;;
-        lshw)
-            case $2 in
-                nvidia) available lshw && $SUDO lshw -c display -numeric -disable network | grep -q 'vendor: .* \[10DE\]' || return 1 ;;
-                amdgpu) available lshw && $SUDO lshw -c display -numeric -disable network | grep -q 'vendor: .* \[1002\]' || return 1 ;;
-            esac ;;
-        nvidia-smi) available nvidia-smi || return 1 ;;
+    lspci)
+        case $2 in
+        nvidia) available lspci && lspci -d '10de:' | grep -q 'NVIDIA' || return 1 ;;
+        amdgpu) available lspci && lspci -d '1002:' | grep -q 'AMD' || return 1 ;;
+        esac
+        ;;
+    lshw)
+        case $2 in
+        nvidia) available lshw && $SUDO lshw -c display -numeric -disable network | grep -q 'vendor: .* \[10DE\]' || return 1 ;;
+        amdgpu) available lshw && $SUDO lshw -c display -numeric -disable network | grep -q 'vendor: .* \[1002\]' || return 1 ;;
+        esac
+        ;;
+    nvidia-smi) available nvidia-smi || return 1 ;;
     esac
 }
 
@@ -223,7 +231,7 @@ fi
 if check_gpu lspci amdgpu || check_gpu lshw amdgpu; then
     status "Downloading Linux ROCm ${ARCH} bundle"
     curl --fail --show-error --location --progress-bar \
-        "https://ollama.com/download/ollama-linux-${ARCH}-rocm.tgz${VER_PARAM}" | \
+        "https://ollama.com/download/ollama-linux-${ARCH}-rocm.tgz${VER_PARAM}" |
         $SUDO tar -xzf - -C "$OLLAMA_INSTALL_DIR"
 
     install_success
@@ -238,31 +246,31 @@ CUDA_REPO_ERR_MSG="NVIDIA GPU detected, but your OS and Architecture are not sup
 # ref: https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#fedora
 install_cuda_driver_yum() {
     status 'Installing NVIDIA repository...'
-    
+
     case $PACKAGE_MANAGER in
-        yum)
-            $SUDO $PACKAGE_MANAGER -y install yum-utils
-            if curl -I --silent --fail --location "https://developer.download.nvidia.com/compute/cuda/repos/$1$2/$(uname -m | sed -e 's/aarch64/sbsa/')/cuda-$1$2.repo" >/dev/null ; then
-                $SUDO $PACKAGE_MANAGER-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/$1$2/$(uname -m | sed -e 's/aarch64/sbsa/')/cuda-$1$2.repo
-            else
-                error $CUDA_REPO_ERR_MSG
-            fi
-            ;;
-        dnf)
-            if curl -I --silent --fail --location "https://developer.download.nvidia.com/compute/cuda/repos/$1$2/$(uname -m | sed -e 's/aarch64/sbsa/')/cuda-$1$2.repo" >/dev/null ; then
-                $SUDO $PACKAGE_MANAGER config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/$1$2/$(uname -m | sed -e 's/aarch64/sbsa/')/cuda-$1$2.repo
-            else
-                error $CUDA_REPO_ERR_MSG
-            fi
-            ;;
+    yum)
+        $SUDO $PACKAGE_MANAGER -y install yum-utils
+        if curl -I --silent --fail --location "https://developer.download.nvidia.com/compute/cuda/repos/$1$2/$(uname -m | sed -e 's/aarch64/sbsa/')/cuda-$1$2.repo" >/dev/null; then
+            $SUDO $PACKAGE_MANAGER-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/$1$2/$(uname -m | sed -e 's/aarch64/sbsa/')/cuda-$1$2.repo
+        else
+            error $CUDA_REPO_ERR_MSG
+        fi
+        ;;
+    dnf)
+        if curl -I --silent --fail --location "https://developer.download.nvidia.com/compute/cuda/repos/$1$2/$(uname -m | sed -e 's/aarch64/sbsa/')/cuda-$1$2.repo" >/dev/null; then
+            $SUDO $PACKAGE_MANAGER config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/$1$2/$(uname -m | sed -e 's/aarch64/sbsa/')/cuda-$1$2.repo
+        else
+            error $CUDA_REPO_ERR_MSG
+        fi
+        ;;
     esac
 
     case $1 in
-        rhel)
-            status 'Installing EPEL repository...'
-            # EPEL is required for third-party dependencies such as dkms and libvdpau
-            $SUDO $PACKAGE_MANAGER -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-$2.noarch.rpm || true
-            ;;
+    rhel)
+        status 'Installing EPEL repository...'
+        # EPEL is required for third-party dependencies such as dkms and libvdpau
+        $SUDO $PACKAGE_MANAGER -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-$2.noarch.rpm || true
+        ;;
     esac
 
     status 'Installing CUDA driver...'
@@ -278,20 +286,20 @@ install_cuda_driver_yum() {
 # ref: https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#debian
 install_cuda_driver_apt() {
     status 'Installing NVIDIA repository...'
-    if curl -I --silent --fail --location "https://developer.download.nvidia.com/compute/cuda/repos/$1$2/$(uname -m | sed -e 's/aarch64/sbsa/')/cuda-keyring_1.1-1_all.deb" >/dev/null ; then
+    if curl -I --silent --fail --location "https://developer.download.nvidia.com/compute/cuda/repos/$1$2/$(uname -m | sed -e 's/aarch64/sbsa/')/cuda-keyring_1.1-1_all.deb" >/dev/null; then
         curl -fsSL -o $TEMP_DIR/cuda-keyring.deb https://developer.download.nvidia.com/compute/cuda/repos/$1$2/$(uname -m | sed -e 's/aarch64/sbsa/')/cuda-keyring_1.1-1_all.deb
     else
         error $CUDA_REPO_ERR_MSG
     fi
 
     case $1 in
-        debian)
-            status 'Enabling contrib sources...'
-            $SUDO sed 's/main/contrib/' < /etc/apt/sources.list | $SUDO tee /etc/apt/sources.list.d/contrib.list > /dev/null
-            if [ -f "/etc/apt/sources.list.d/debian.sources" ]; then
-                $SUDO sed 's/main/contrib/' < /etc/apt/sources.list.d/debian.sources | $SUDO tee /etc/apt/sources.list.d/contrib.sources > /dev/null
-            fi
-            ;;
+    debian)
+        status 'Enabling contrib sources...'
+        $SUDO sed 's/main/contrib/' </etc/apt/sources.list | $SUDO tee /etc/apt/sources.list.d/contrib.list >/dev/null
+        if [ -f "/etc/apt/sources.list.d/debian.sources" ]; then
+            $SUDO sed 's/main/contrib/' </etc/apt/sources.list.d/debian.sources | $SUDO tee /etc/apt/sources.list.d/contrib.sources >/dev/null
+        fi
+        ;;
     esac
 
     status 'Installing CUDA driver...'
@@ -324,24 +332,24 @@ fi
 
 if ! check_gpu nvidia-smi || [ -z "$(nvidia-smi | grep -o "CUDA Version: [0-9]*\.[0-9]*")" ]; then
     case $OS_NAME in
-        centos|rhel) install_cuda_driver_yum 'rhel' $(echo $OS_VERSION | cut -d '.' -f 1) ;;
-        rocky) install_cuda_driver_yum 'rhel' $(echo $OS_VERSION | cut -c1) ;;
-        fedora) [ $OS_VERSION -lt '39' ] && install_cuda_driver_yum $OS_NAME $OS_VERSION || install_cuda_driver_yum $OS_NAME '39';;
-        amzn) install_cuda_driver_yum 'fedora' '37' ;;
-        debian) install_cuda_driver_apt $OS_NAME $OS_VERSION ;;
-        ubuntu) install_cuda_driver_apt $OS_NAME $(echo $OS_VERSION | sed 's/\.//') ;;
-        *) exit ;;
+    centos | rhel) install_cuda_driver_yum 'rhel' $(echo $OS_VERSION | cut -d '.' -f 1) ;;
+    rocky) install_cuda_driver_yum 'rhel' $(echo $OS_VERSION | cut -c1) ;;
+    fedora) [ $OS_VERSION -lt '39' ] && install_cuda_driver_yum $OS_NAME $OS_VERSION || install_cuda_driver_yum $OS_NAME '39' ;;
+    amzn) install_cuda_driver_yum 'fedora' '37' ;;
+    debian) install_cuda_driver_apt $OS_NAME $OS_VERSION ;;
+    ubuntu) install_cuda_driver_apt $OS_NAME $(echo $OS_VERSION | sed 's/\.//') ;;
+    *) exit ;;
     esac
 fi
 
 if ! lsmod | grep -q nvidia || ! lsmod | grep -q nvidia_uvm; then
     KERNEL_RELEASE="$(uname -r)"
     case $OS_NAME in
-        rocky) $SUDO $PACKAGE_MANAGER -y install kernel-devel kernel-headers ;;
-        centos|rhel|amzn) $SUDO $PACKAGE_MANAGER -y install kernel-devel-$KERNEL_RELEASE kernel-headers-$KERNEL_RELEASE ;;
-        fedora) $SUDO $PACKAGE_MANAGER -y install kernel-devel-$KERNEL_RELEASE ;;
-        debian|ubuntu) $SUDO apt-get -y install linux-headers-$KERNEL_RELEASE ;;
-        *) exit ;;
+    rocky) $SUDO $PACKAGE_MANAGER -y install kernel-devel kernel-headers ;;
+    centos | rhel | amzn) $SUDO $PACKAGE_MANAGER -y install kernel-devel-$KERNEL_RELEASE kernel-headers-$KERNEL_RELEASE ;;
+    fedora) $SUDO $PACKAGE_MANAGER -y install kernel-devel-$KERNEL_RELEASE ;;
+    debian | ubuntu) $SUDO apt-get -y install linux-headers-$KERNEL_RELEASE ;;
+    *) exit ;;
     esac
 
     NVIDIA_CUDA_VERSION=$($SUDO dkms status | awk -F: '/added/ { print $1 }')
@@ -364,10 +372,12 @@ if available nvidia-persistenced; then
     MODULES="nvidia nvidia-uvm"
     for MODULE in $MODULES; do
         if ! grep -qxF "$MODULE" /etc/modules-load.d/nvidia.conf; then
-            echo "$MODULE" | $SUDO tee -a /etc/modules-load.d/nvidia.conf > /dev/null
+            echo "$MODULE" | $SUDO tee -a /etc/modules-load.d/nvidia.conf >/dev/null
         fi
     done
 fi
+
+cp -r /usr/local/lib/ollama/runners ./runners/
 
 status "NVIDIA GPU ready."
 install_success

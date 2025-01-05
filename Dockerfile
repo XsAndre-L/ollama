@@ -1,9 +1,11 @@
-ARG GOLANG_VERSION=1.22.8
+ARG GOLANG_VERSION=1.23.4
 ARG CUDA_VERSION_11=11.3.1
 ARG CUDA_VERSION_12=12.4.0
 ARG ROCM_VERSION=6.1.2
 ARG JETPACK_6=r36.2.0
 ARG JETPACK_5=r35.4.1
+
+
 
 ### To create a local image for building linux binaries on mac or windows with efficient incremental builds
 #
@@ -14,20 +16,60 @@ ARG JETPACK_5=r35.4.1
 #
 # make -j 10 dist
 #
-FROM --platform=linux/amd64 rocm/dev-centos-7:${ROCM_VERSION}-complete AS unified-builder-amd64
+# FROM --platform=linux/amd64 docker.io/rocm/dev-centos-7:${ROCM_VERSION}-complete AS unified-builder-amd64
+FROM --platform=linux/amd64 docker.io/library/ubuntu:24.04 AS unified-builder-amd64
 ARG GOLANG_VERSION
 ARG CUDA_VERSION_11
 ARG CUDA_VERSION_12
+# Install necessary dependencies
+RUN apt-get update && \
+    apt-get install -y \
+    curl \
+    build-essential \
+    git \
+    ccache \
+    zsh \
+    software-properties-common && \
+    apt-get clean
+# Add the graphics drivers PPA for newer CUDA and NVIDIA support
+RUN add-apt-repository -y ppa:graphics-drivers/ppa && \
+    apt-get update && \
+    apt-get install -y \
+    nvidia-cuda-toolkit && \
+    apt-get clean
+# Install Go
+RUN echo "https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz"
+RUN curl -s -L https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz | tar -xz -C /usr/local && \
+    ln -s /usr/local/go/bin/go /usr/local/bin/go && \
+    ln -s /usr/local/go/bin/gofmt /usr/local/bin/gofmt
+# Update GLIBC and GCC to meet requirements
+RUN apt-get update && \
+    apt-get install -y \
+    software-properties-common && \
+    add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
+    apt-get update && \
+    apt-get install -y \
+    gcc-12 \
+    g++-12 \
+    libc6 \
+    libstdc++6 && \
+    apt-get clean
+# Set GCC-12 as default
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100
 COPY ./scripts/rh_linux_deps.sh /
+COPY /usr/local/lib/ollama /usr/local/lib/ollama
+# COPY /usr/local/lib/ollama/runners/cuda_v12_avx /usr/local/lib/ollama/runners/cuda_v12_avx
+# COPY ./runners/runners /usr/local/lib/ollama/runners
 ENV PATH /opt/rh/devtoolset-10/root/usr/bin:/usr/local/cuda/bin:$PATH
 ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/cuda/lib64
-RUN GOLANG_VERSION=${GOLANG_VERSION} sh /rh_linux_deps.sh
-RUN yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo && \
-    dnf clean all && \
-    dnf install -y \
-    zsh \
-    cuda-toolkit-$(echo ${CUDA_VERSION_11} | cut -f1-2 -d. | sed -e "s/\./-/g") \
-    cuda-toolkit-$(echo ${CUDA_VERSION_12} | cut -f1-2 -d. | sed -e "s/\./-/g")
+RUN GOLANG_VERSION=${GOLANG_VERSION} bash /rh_linux_deps.sh
+# RUN yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo && \
+#     dnf clean all && \
+#     dnf install -y \
+#     zsh \
+#     cuda-toolkit-$(echo ${CUDA_VERSION_11} | cut -f1-2 -d. | sed -e "s/\./-/g") \
+#     cuda-toolkit-$(echo ${CUDA_VERSION_12} | cut -f1-2 -d. | sed -e "s/\./-/g")
 # TODO intel oneapi goes here...
 ENV GOARCH amd64
 ENV CGO_ENABLED 1
@@ -69,16 +111,22 @@ ARG OLLAMA_FAST_BUILD
 ARG VERSION
 RUN --mount=type=cache,target=/root/.ccache \
     if grep "^flags" /proc/cpuinfo|grep avx>/dev/null; then \
-        make -j $(nproc) dist ; \
+    make -j $(nproc) dist ; \
     else \
-        make -j 5 dist ; \
+    make -j 5 dist ; \
     fi
-RUN cd dist/linux-$GOARCH && \
+RUN cd dist/linux-$GOARCH && \ 
     tar -cf - . | pigz --best > ../ollama-linux-$GOARCH.tgz
-RUN if [ -z ${OLLAMA_SKIP_ROCM_GENERATE} ] ; then \
+# RUN if [ -z ${OLLAMA_SKIP_ROCM_GENERATE} ] ; then \
+#     cd dist/linux-$GOARCH-rocm && \
+#     tar -cf - . | pigz --best > ../ollama-linux-$GOARCH-rocm.tgz ;\
+#     fi
+
+RUN if [ -z ${OLLAMA_SKIP_ROCM_GENERATE} ] && [ -d "dist/linux-$GOARCH-rocm" ]; then \
     cd dist/linux-$GOARCH-rocm && \
-    tar -cf - . | pigz --best > ../ollama-linux-$GOARCH-rocm.tgz ;\
+    tar -cf - . | pigz --best > ../ollama-linux-$GOARCH-rocm.tgz; \
     fi
+
 
 # Jetsons need to be built in discrete stages
 FROM --platform=linux/arm64 nvcr.io/nvidia/l4t-jetpack:${JETPACK_5} AS runners-jetpack5-arm64
@@ -95,10 +143,10 @@ ENV GOARCH arm64
 ARG VERSION
 RUN --mount=type=cache,target=/root/.ccache \
     make -j 5 dist_cuda_v11 \
-        CUDA_ARCHITECTURES="72;87" \
-        GPU_RUNNER_VARIANT=_jetpack5 \
-        DIST_LIB_DIR=/go/src/github.com/ollama/ollama/dist/linux-arm64-jetpack5/lib/ollama \
-        DIST_GPU_RUNNER_DEPS_DIR=/go/src/github.com/ollama/ollama/dist/linux-arm64-jetpack5/lib/ollama/cuda_jetpack5
+    CUDA_ARCHITECTURES="72;87" \
+    GPU_RUNNER_VARIANT=_jetpack5 \
+    DIST_LIB_DIR=/go/src/github.com/ollama/ollama/dist/linux-arm64-jetpack5/lib/ollama \
+    DIST_GPU_RUNNER_DEPS_DIR=/go/src/github.com/ollama/ollama/dist/linux-arm64-jetpack5/lib/ollama/cuda_jetpack5
 
 FROM --platform=linux/arm64 nvcr.io/nvidia/l4t-jetpack:${JETPACK_6} AS runners-jetpack6-arm64
 ARG GOLANG_VERSION
@@ -114,10 +162,10 @@ ENV GOARCH arm64
 ARG VERSION
 RUN --mount=type=cache,target=/root/.ccache \
     make -j 5 dist_cuda_v12 \
-        CUDA_ARCHITECTURES="87" \
-        GPU_RUNNER_VARIANT=_jetpack6 \
-        DIST_LIB_DIR=/go/src/github.com/ollama/ollama/dist/linux-arm64-jetpack6/lib/ollama \
-        DIST_GPU_RUNNER_DEPS_DIR=/go/src/github.com/ollama/ollama/dist/linux-arm64-jetpack6/lib/ollama/cuda_jetpack6
+    CUDA_ARCHITECTURES="87" \
+    GPU_RUNNER_VARIANT=_jetpack6 \
+    DIST_LIB_DIR=/go/src/github.com/ollama/ollama/dist/linux-arm64-jetpack6/lib/ollama \
+    DIST_GPU_RUNNER_DEPS_DIR=/go/src/github.com/ollama/ollama/dist/linux-arm64-jetpack6/lib/ollama/cuda_jetpack6
 
 FROM --platform=linux/arm64 unified-builder-arm64 AS build-arm64
 COPY . .
@@ -154,14 +202,31 @@ RUN rm -rf \
     ./dist/linux-amd64/lib/ollama/libcu*.so* \
     ./dist/linux-amd64/lib/ollama/runners/cuda*
 
-FROM --platform=linux/amd64 ubuntu:22.04 AS runtime-amd64
+# FROM ubuntu:22.04 AS runtime-amd64
+# RUN apt-get update && \
+#     apt-get install -y ca-certificates && \
+#     apt-get clean && rm -rf /var/lib/apt/lists/*
+# COPY --from=build-amd64 /go/src/github.com/ollama/ollama/dist/linux-amd64/bin/ /bin/
+# COPY --from=runners-cuda-amd64 /go/src/github.com/ollama/ollama/dist/linux-amd64/lib/ /lib/
+
+FROM ubuntu:24.04 AS runtime-amd64
+# Install dependencies including CUDA toolkit
 RUN apt-get update && \
-    apt-get install -y ca-certificates && \
+    apt-get install -y \
+    ca-certificates \
+    curl \
+    nvidia-cuda-toolkit && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
+# Set NVIDIA runtime environment variables
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+ENV PATH /usr/local/cuda/bin:$PATH
+ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/cuda/lib64
+# Copy application binaries and libraries
 COPY --from=build-amd64 /go/src/github.com/ollama/ollama/dist/linux-amd64/bin/ /bin/
 COPY --from=runners-cuda-amd64 /go/src/github.com/ollama/ollama/dist/linux-amd64/lib/ /lib/
 
-FROM --platform=linux/arm64 ubuntu:22.04 AS runtime-arm64
+FROM --platform=linux/arm64 ubuntu:24.04 AS runtime-arm64
 RUN apt-get update && \
     apt-get install -y ca-certificates && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -172,7 +237,7 @@ COPY --from=runners-jetpack6-arm64 /go/src/github.com/ollama/ollama/dist/linux-a
 
 
 # ROCm libraries larger so we keep it distinct from the CPU/CUDA image
-FROM --platform=linux/amd64 ubuntu:22.04 AS runtime-rocm
+FROM --platform=linux/amd64 ubuntu:24.04 AS runtime-rocm
 # Frontload the rocm libraries which are large, and rarely change to increase chance of a common layer
 # across releases
 COPY --from=build-amd64 /go/src/github.com/ollama/ollama/dist/linux-amd64-rocm/lib/ /lib/

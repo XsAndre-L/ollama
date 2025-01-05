@@ -11,7 +11,7 @@ import (
 
 	"github.com/ollama/ollama/app/store"
 	"github.com/ollama/ollama/app/tray"
-	"github.com/ollama/ollama/envconfig"
+	"github.com/ollama/ollama/core/envconfig"
 )
 
 func Run() {

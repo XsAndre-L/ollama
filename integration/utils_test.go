@@ -22,8 +22,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ollama/ollama/api"
 	"github.com/ollama/ollama/app/lifecycle"
+	"github.com/ollama/ollama/core/api"
 	"github.com/stretchr/testify/require"
 )
 

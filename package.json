@@ -1,0 +1,12 @@
+{
+  "name": "xai-server",
+  "module": "manager/xai-server.ts",
+  "type": "module",
+  "scripts": {},
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

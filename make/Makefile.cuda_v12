@@ -4,10 +4,27 @@ include make/common-defs.make
 include make/cuda-v12-defs.make
 
 GPU_RUNNER_VARIANT := _v12
-GPU_COMPILER=$(CUDA_12_COMPILER)
+GPU_COMPILER=$(CUDA_12_COMPILER) -ccbin gcc-12
 CUDA_ARCHITECTURES?=60;61;62;70;72;75;80;86;87;89;90;90a
 GPU_LIB_DIR = $(CUDA_12_LIB_DIR)
 CGO_EXTRA_LDFLAGS = $(CUDA_12_CGO_EXTRA_LDFLAGS)
 
 include make/cuda.make
 include make/gpu.make
+
+
+
+# Step 2: Add the following lines at the end of the file:
+
+# .PHONY: gpu
+
+# gpu:
+# 	@echo "Compiling GPU runner with variant $(GPU_RUNNER_VARIANT)..."
+# 	$(GPU_COMPILER) -o build/gpu_runner$(GPU_RUNNER_VARIANT).exe src/gpu_runner.cu $(CGO_EXTRA_LDFLAGS) -L$(GPU_LIB_DIR) -lcuda
+
+
+.PHONY: cuda_v12
+
+cuda_v12:
+	@echo "Building CUDA v12 runner..."
+	$(MAKE) gpu

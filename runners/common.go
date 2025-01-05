@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/sys/cpu"
 
-	"github.com/ollama/ollama/envconfig"
+	"github.com/ollama/ollama/core/envconfig"
 )
 
 var (

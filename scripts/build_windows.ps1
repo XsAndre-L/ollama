@@ -88,7 +88,7 @@ function buildOllama() {
         write-host "Skipping generate step with OLLAMA_SKIP_GENERATE set"
     }
     write-host "Building ollama CLI"
-    & go build -trimpath -ldflags "-s -w -X=github.com/ollama/ollama/version.Version=$script:VERSION -X=github.com/ollama/ollama/server.mode=release" .
+    & go build -trimpath -ldflags "-s -w -X=github.com/ollama/ollama/core/version.Version=$script:VERSION -X=github.com/ollama/ollama/core/server.mode=release" .
     if ($LASTEXITCODE -ne 0) { exit($LASTEXITCODE)}
     New-Item -ItemType Directory -Path .\dist\windows-${script:TARGET_ARCH}\ -Force
     cp .\ollama.exe .\dist\windows-${script:TARGET_ARCH}\
@@ -98,7 +98,7 @@ function buildApp() {
     write-host "Building Ollama App"
     cd "${script:SRC_DIR}\app"
     & windres -l 0 -o ollama.syso ollama.rc
-    & go build -trimpath -ldflags "-s -w -H windowsgui -X=github.com/ollama/ollama/version.Version=$script:VERSION -X=github.com/ollama/ollama/server.mode=release" -o "${script:SRC_DIR}\dist\windows-${script:TARGET_ARCH}-app.exe" .
+    & go build -trimpath -ldflags "-s -w -H windowsgui -X=github.com/ollama/ollama/core/version.Version=$script:VERSION -X=github.com/ollama/ollama/core/server.mode=release" -o "${script:SRC_DIR}\dist\windows-${script:TARGET_ARCH}-app.exe" .
     if ($LASTEXITCODE -ne 0) { exit($LASTEXITCODE)}
 }
 

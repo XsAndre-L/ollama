@@ -33,7 +33,7 @@ if grep -i "centos" /etc/system-release >/dev/null; then
     dnf install -y devtoolset-10-gcc devtoolset-10-gcc-c++ pigz findutils
 elif grep -i "rocky" /etc/system-release >/dev/null; then
     # Temporary workaround until rocky 8 AppStream ships GCC 10.4 (10.3 is incompatible with NVCC)
-    cat << EOF > /etc/yum.repos.d/Rocky-Vault.repo
+    cat <<EOF >/etc/yum.repos.d/Rocky-Vault.repo
 [vault]
 name=Rocky Vault
 baseurl=https://dl.rockylinux.org/vault/rocky/8.5/AppStream/\$basearch/os/
@@ -48,14 +48,26 @@ EOF
         findutils \
         yum-utils \
         pigz
+elif grep -i "ubuntu" /etc/os-release >/dev/null 2>&1; then
+    # Handle Ubuntu
+    apt-get update &&
+        apt-get install -y \
+            build-essential \
+            git \
+            curl \
+            ccache \
+            zsh \
+            pigz \
+            findutils &&
+        apt-get clean
 else
     echo "ERROR Unexpected distro"
     exit 1
 fi
 
-if [ "${MACHINE}" = "x86_64" ] ; then
-    curl -s -L https://github.com/ccache/ccache/releases/download/v4.10.2/ccache-4.10.2-linux-x86_64.tar.xz | tar -Jx -C /tmp --strip-components 1 && \
-    mv /tmp/ccache /usr/local/bin/
+if [ "${MACHINE}" = "x86_64" ]; then
+    curl -s -L https://github.com/ccache/ccache/releases/download/v4.10.2/ccache-4.10.2-linux-x86_64.tar.xz | tar -Jx -C /tmp --strip-components 1 &&
+        mv /tmp/ccache /usr/local/bin/
 else
     yum -y install epel-release
     yum install -y ccache
@@ -73,6 +85,13 @@ if [ -n "${GOLANG_VERSION}" ]; then
     fi
     mkdir -p /usr/local
     curl -s -L https://dl.google.com/go/go${GOLANG_VERSION}.linux-${GO_ARCH}.tar.gz | tar xz -C /usr/local
+    # ln -s /usr/local/go/bin/go /usr/local/bin/go
+    # ln -s /usr/local/go/bin/gofmt /usr/local/bin/gofmt
+
+    # Remove existing symbolic links if they exist
+    [ -L /usr/local/bin/go ] && rm /usr/local/bin/go
+    [ -L /usr/local/bin/gofmt ] && rm /usr/local/bin/gofmt
+
     ln -s /usr/local/go/bin/go /usr/local/bin/go
     ln -s /usr/local/go/bin/gofmt /usr/local/bin/gofmt
 fi

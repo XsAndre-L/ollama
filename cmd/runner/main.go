@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ollama/ollama/llama/runner"
+	"github.com/ollama/ollama/core/llama/runner"
 )
 
 func main() {

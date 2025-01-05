@@ -34,16 +34,16 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/term"
 
-	"github.com/ollama/ollama/api"
-	"github.com/ollama/ollama/envconfig"
-	"github.com/ollama/ollama/format"
-	"github.com/ollama/ollama/llama"
-	"github.com/ollama/ollama/llama/runner"
-	"github.com/ollama/ollama/parser"
-	"github.com/ollama/ollama/progress"
-	"github.com/ollama/ollama/server"
-	"github.com/ollama/ollama/types/model"
-	"github.com/ollama/ollama/version"
+	"github.com/ollama/ollama/core/api"
+	"github.com/ollama/ollama/core/envconfig"
+	"github.com/ollama/ollama/core/format"
+	"github.com/ollama/ollama/core/llama"
+	"github.com/ollama/ollama/core/llama/runner"
+	"github.com/ollama/ollama/core/parser"
+	"github.com/ollama/ollama/core/progress"
+	"github.com/ollama/ollama/core/server"
+	"github.com/ollama/ollama/core/types/model"
+	"github.com/ollama/ollama/core/version"
 )
 
 var (
