@@ -3,6 +3,9 @@
 make -j12 runners
 make -j12 exe
 
+./ollama.exe serve
+
+# NOT WORKING
 #  docker build -t ollama .
 
 # docker run --gpus all -p 11434:11434 -v "C:/Users/ahlou/.ollama:/root/.ollama" --name ollama ollama
